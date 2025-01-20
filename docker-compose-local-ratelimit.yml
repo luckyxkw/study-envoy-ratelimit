@@ -1,0 +1,26 @@
+version: "3"
+services:
+  envoy:
+    image: envoyproxy/envoy:v1.33.0
+    ports:
+      - "8888:8888"
+      - "8001:8001"
+    networks:
+      - test-network
+    volumes:
+      - ./envoy-local-ratelimit-config.yaml:/etc/envoy/envoy.yaml
+
+  mock:
+    image: envoyproxy/envoy:v1.33.0
+    expose:
+      - 9999
+    ports:
+      - "9999:9999"
+      - "8002:8002"
+    networks:
+      - test-network
+    volumes:
+      - ./envoy-mock.yaml:/etc/envoy/envoy.yaml
+
+networks:
+  test-network:
