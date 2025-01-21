@@ -52,31 +52,24 @@ static_resources:
                       always_consume_default_token_bucket: false
                       descriptors:
                         - entries:
-                            - key: foo
+                            - key: token
                               value: "1"
                           token_bucket:
                             max_tokens: 3
                             tokens_per_fill: 3
                             fill_interval: "60s"
                         - entries:
-                            - key: foo
+                            - key: token
                               value: "2"
-                          token_bucket:
-                            max_tokens: 3
-                            tokens_per_fill: 3
-                            fill_interval: "60s"
-                        - entries:
-                            - key: foo
-                              value: "3"
                           token_bucket:
                             max_tokens: 3
                             tokens_per_fill: 3
                             fill_interval: "60s"
                       rate_limits:
                         - actions:
-                            - request_headers:
-                                header_name: "foo"
-                                descriptor_key: "foo"
+                            - query_parameters:
+                                query_parameter_name: "token"
+                                descriptor_key: "token"
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
