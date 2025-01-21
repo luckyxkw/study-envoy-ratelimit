@@ -1,0 +1,12 @@
+---
+domain: rl
+descriptors:
+  - key: token
+    rate_limit:
+      unit: minute
+      requests_per_unit: 3
+  - key: token
+    value: premium_user_token
+    rate_limit:
+      unit: minute
+      requests_per_unit: 10

@@ -1,6 +1,6 @@
 # study-envoy-ratelimit
 
-Study Envoy Proxy's rate limiting with some example environment setup
+Compare Envoy Proxy's local vs global rate limiting with some example environment setup.
 
 ## local rate limit demo
 
@@ -10,7 +10,12 @@ To start the demo environment:
 docker-compose -f docker-compose-local-ratelimit.yml up --build --remove-orphans
 ```
 
-Run `test-local-ratelimit.sh` to send some test requests. We can see the fourth requests for token=1
+This will start 2 containers:
+
+- mock: a mock backend which always returns 200
+- envoy: envoy proxy with local rate limit
+
+Run `test-requests.sh` to send some test requests. We can see the fourth requests for token=1
 or token=2 are rejected. And for other requests, only one request is allowed.
 
 We can zoom into the local rate limit definition to see why envoy behaves in this way:
@@ -55,11 +60,43 @@ We can zoom into the local rate limit definition to see why envoy behaves in thi
                                 descriptor_key: "token"
 ```
 
-Here we defined three token buckets: 1 req/min for global, 3 req/min for token=1, and 3 req/min for token=2. The token descriptor uses the value in request query param `token`. When we send requests like /test?token=1 or /test?token=2, tokens in their corresponding bucket are consumed. For other requests, tokens in global bucket is consumed.
+Here we defined three token buckets: 1 req/min for global, 3 req/min for token=1, and 3 req/min for token=2. The token descriptor uses the value in request query param `token`. When we send requests like /test?token=1 or /test?token=2, tokens in their corresponding bucket are consumed. For other requests, tokens in the global bucket is consumed.
 
-Since local rate limit [does not support dyanmic token bucket](https://github.com/envoyproxy/envoy/issues/19895#issuecomment-1051136575), we have to define all possible descriptor values in the config. This is inpractical for cases like "limiting x rps for each distinct user". Thus global rate limiting is here to play the role.
+Since local rate limit [does not support dyanmic token bucket](https://github.com/envoyproxy/envoy/issues/19895#issuecomment-1051136575), we have to define all possible descriptor values in the config. This is inpractical for cases like "limiting x rps for each distinct user". Thus global rate limiting comes into play.
 
 ## global rate limit demo
+
+To start the demo environment:
+
+```
+docker-compose -f docker-compose-global-ratelimit.yml up --build --remove-orphans
+```
+
+This will start 4 containers:
+
+- mock: a mock backend which always returns 200
+- envoy: envoy proxy with global rate limit
+- ratelimit: rate limit service using envoy's example implementation
+- redis: redis cluster used by ratelimit to store counts
+
+Run `test-requests.sh` to send some test requests. We can see 3 requests are allowed for any distinct token values.
+
+If we zoom into the config for limit service ratelimit/config/example.yaml, we can see no explicit values needed to define limit for distinct users. Rate limit service is able to create buckets dynamically for different users. Alternatively we can provide value in the config to override limit.
+
+```
+---
+domain: rl
+descriptors:
+  - key: token
+    rate_limit:
+      unit: minute
+      requests_per_unit: 3
+  - key: token
+    value: premium_user_token
+    rate_limit:
+      unit: minute
+      requests_per_unit: 10
+```
 
 ## references
 

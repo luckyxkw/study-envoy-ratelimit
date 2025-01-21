@@ -1,0 +1,75 @@
+version: "3"
+services:
+  redis:
+    image: redis:alpine
+    expose:
+      - 6379
+    ports:
+      - 6379:6379
+    networks:
+      - test-network
+
+  ratelimit:
+    image: envoyproxy/ratelimit:master
+    command: /bin/ratelimit
+    ports:
+      - 8080:8080
+      - 8081:8081
+      - 6070:6070
+    depends_on:
+      - redis
+    networks:
+      - test-network
+    volumes:
+      - ./ratelimit/config:/data/ratelimit/config
+    environment:
+      - LOG_LEVEL=debug
+      - REDIS_SOCKET_TYPE=tcp
+      - REDIS_URL=redis:6379
+      - RUNTIME_ROOT=/data
+      - RUNTIME_SUBDIRECTORY=ratelimit # all .yaml files will be loaded
+      - RUNTIME_WATCH_ROOT=false # no hot reload on file content change
+      - CONFIG_TYPE=${CONFIG_TYPE:-FILE}
+
+  envoy:
+    image: envoyproxy/envoy:v1.33.0
+    entrypoint: "/usr/local/bin/envoy"
+    command:
+      - "--service-node proxy"
+      - "--service-cluster proxy"
+      - "--config-path /etc/envoy/envoy.yaml"
+      - "--concurrency 1"
+      - "--mode serve"
+      - "--log-level info"
+    volumes:
+      - ./envoy-global-ratelimit.yaml:/etc/envoy/envoy.yaml
+    networks:
+      - test-network
+    expose:
+      - "8888"
+      - "8001"
+    ports:
+      - "8888:8888"
+      - "8001:8001"
+
+  mock:
+    image: envoyproxy/envoy:v1.33.0
+    entrypoint: "/usr/local/bin/envoy"
+    command:
+      - "--service-node mock"
+      - "--service-cluster mock"
+      - "--config-path /etc/envoy/envoy.yaml"
+      - "--concurrency 1"
+      - "--mode serve"
+      - "--log-level info"
+    volumes:
+      - ./envoy-mock.yaml:/etc/envoy/envoy.yaml
+    networks:
+      - test-network
+    expose:
+      - "9999"
+    ports:
+      - "9999:9999"
+
+networks:
+  test-network:
